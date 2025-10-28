@@ -18,8 +18,11 @@ def get_db():
         db.close()
 
 # Rota de Registro
-@router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def register(user: UserCreate, db: Session = Depends(get_db)):
+@router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
+def register(
+    user: UserCreate, 
+    db: Session = Depends(get_db)
+):
     # Verifica se email já existe
     db_user = db.query(User).filter(User.email == user.email).first()
     if db_user:
@@ -35,7 +38,10 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return new_user
+    # Gera token JWT já no registro
+    token = create_access_token({"sub": str(new_user.id)})
+    return {"access_token": token, "token_type": "bearer"}
+
 
 # Rota de Login
 @router.post("/login", response_model=Token)

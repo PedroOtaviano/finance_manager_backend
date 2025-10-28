@@ -8,6 +8,7 @@ from app.core.auth import get_current_user, get_db
 from app.models.transaction import Transaction
 from app.models.category import Category
 from app.models.user import User
+from fastapi.responses import HTMLResponse
 
 router = APIRouter()
 
@@ -95,3 +96,36 @@ def get_trends(
         trends[key][t_type] = float(total)
 
     return list(trends.values())
+
+# retornação em HTML para integração com front-end
+
+@router.get("/summary_html", response_class=HTMLResponse)
+def get_summary_html(month: int, year: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    data = get_summary(month, year, db, current_user)
+    html = f"""
+    <p><strong>Receitas:</strong> R$ {data['income']:.2f}</p>
+    <p><strong>Despesas:</strong> R$ {data['expense']:.2f}</p>
+    <p><strong>Saldo:</strong> <span class="{'positive' if data['balance'] >= 0 else 'negative'}">R$ {data['balance']:.2f}</span></p>
+    <h3>Top Categorias</h3>
+    <ul>
+        {''.join(f"<li>{c['category']} — R$ {c['total']:.2f}</li>" for c in data['top_categories'])}
+    </ul>
+    """
+    return HTMLResponse(content=html)
+
+@router.get("/trends_html", response_class=HTMLResponse)
+def get_trends_html(months: int = 6, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    data = get_trends(months, db, current_user)
+    rows = "".join(
+        f"<tr><td>{item['month']}</td><td>R$ {item['income']:.2f}</td><td>R$ {item['expense']:.2f}</td></tr>"
+        for item in data
+    )
+    html = f"""
+    <table>
+        <thead>
+            <tr><th>Mês</th><th>Receitas</th><th>Despesas</th></tr>
+        </thead>
+        <tbody>{rows}</tbody>
+    </table>
+    """
+    return HTMLResponse(content=html)
