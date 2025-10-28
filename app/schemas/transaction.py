@@ -2,11 +2,16 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import date
 from decimal import Decimal
+from enum import Enum
+
+class TransactionType(str, Enum):
+    income = "income"
+    expense = "expense"
 
 # Criar transação
 class TransactionCreate(BaseModel):
     category_id: int
-    type: str  # 'income' ou 'expense'
+    type: TransactionType
     amount: Decimal
     date: date
     note: Optional[str] = None
@@ -14,7 +19,7 @@ class TransactionCreate(BaseModel):
 # Atualizar transação
 class TransactionUpdate(BaseModel):
     category_id: Optional[int] = None
-    type: Optional[str] = None
+    type: Optional[TransactionType] = None
     amount: Optional[Decimal] = None
     date: Optional[date] = None
     note: Optional[str] = None
@@ -23,10 +28,10 @@ class TransactionUpdate(BaseModel):
 class TransactionOut(BaseModel):
     id: int
     category_id: int
-    type: str
+    type: TransactionType
     amount: Decimal
     date: date
     note: Optional[str]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
