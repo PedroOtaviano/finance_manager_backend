@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.auth import get_current_user, get_db
@@ -59,6 +60,57 @@ def update_transaction(
     db.commit()
     db.refresh(db_transaction)
     return db_transaction
+
+# Endpoint para retornar html
+
+@router.get("/html", response_class=HTMLResponse)
+def list_transactions_html(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    transactions = (
+        db.query(Transaction)
+        .filter(Transaction.user_id == current_user.id)
+        .order_by(Transaction.date.desc())
+        .all()
+    )
+
+    rows = "".join(
+        f"<tr><td>{t.date}</td><td>{t.type}</td><td>R$ {t.amount:.2f}</td><td>{t.note or ''}</td></tr>"
+        for t in transactions
+    )
+
+    html = f"""
+    <table>
+        <thead>
+            <tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Nota</th></tr>
+        </thead>
+        <tbody>{rows}</tbody>
+    </table>
+    """
+    return HTMLResponse(content=html)
+
+
+@router.post("/html", response_class=HTMLResponse)
+def create_transaction_html(
+    transaction: TransactionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    new_transaction = Transaction(
+        user_id=current_user.id,
+        category_id=transaction.category_id,
+        type=transaction.type,
+        amount=transaction.amount,
+        date=transaction.date,
+        note=transaction.note
+    )
+    db.add(new_transaction)
+    db.commit()
+    db.refresh(new_transaction)
+
+    return list_transactions_html(db, current_user)
+
 
 # Deletar transação
 @router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
